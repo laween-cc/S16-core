@@ -21,10 +21,10 @@ $(build)/boot.bin: src/mbr/boot.nasm
 $(build)/kernel.bin: src/kernel/kernel.nasm
 	@$(MAKE) -C src/kernel
 
-.PHONY: xxd clean qemu
+.PHONY: ghex clean qemu
 
-xxd: $(target)
-	@xxd $<
+ghex: $(target)
+	@ghex $<
 
 clean:
 # DO NOT RUN WITH SUPER PERMISSIONS
