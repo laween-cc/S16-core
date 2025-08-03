@@ -21,7 +21,7 @@ $(build)/boot.bin: src/mbr/boot.nasm
 $(build)/kernel.bin: src/kernel/kernel.nasm
 	@$(MAKE) -C src/kernel
 
-.PHONY: xxd clean
+.PHONY: xxd clean qemu
 
 xxd: $(target)
 	@xxd $<
@@ -29,3 +29,6 @@ xxd: $(target)
 clean:
 # DO NOT RUN WITH SUPER PERMISSIONS
 	rm -r $(build)/* --preserve-root --verbose --one-file-system
+
+qemu: $(target)
+	@qemu-system-i386 -drive if=floppy,format=raw,file=$< -boot order=a
