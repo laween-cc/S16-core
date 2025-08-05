@@ -9,10 +9,10 @@ S16 uses legacy BIOS and legacy bios functions (int 13,2h, int 10,0h, etc). If y
 
 S16's kernel is pretty simple to be honest. Here is some information about it:
 
-- The kernel gets loaded at ``0x0800:0x0000`` by the MBR using int 13,2h.
+- The kernel gets copied to ``0x0000:0x7C00`` by the second stage boot.
 - The kernel has a DOS like terminal to use commands and tools.
 - The kernel has a built in text editor, which is also simple.
-- The kernel uses 640x480 (VGA) as its video mode. Which is set by the MBR using int 10,0h.
+- The kernel uses 320x200 VGA as its video mode. Which is set by the MBR using int 10,0h.
 
 # Contributing
 
