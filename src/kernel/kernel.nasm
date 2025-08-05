@@ -1,24 +1,24 @@
 [bits 16]
-org 0x0000 ; 0x0800:0x0000
+org 0x7C00
 
 kstart:
     cli
 
     ; data segments
-    mov ax, cs ; 0x0800
+    xor ax, ax ; 0x0000 (CS)
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
+    ; mov fs, ax
+    ; mov gs, ax
 
-    ; stack
-    xor ax, ax ; 0x0000
+    ; stack - 0x0000:0x8400
     mov ss, ax
-    mov sp, 0x8400    
+    mov sp, 0x8400
 
     mov [boot_drive], dl ; save the boot drive
 
     sti
+
 
 
     jmp $
