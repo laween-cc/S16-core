@@ -15,7 +15,7 @@ $(target): $(build)/boot.bin $(build)/kernel.bin $(build)/boot2.bin
 	dd if=$(build)/boot2.bin of=$@ bs=512 seek=1 count=1 conv=notrunc
 	@sync
 # write the kernel
-	dd if=$(build)/kernel.bin of=$@ bs=512 seek=2 count=1 conv=notrunc
+	dd if=$(build)/kernel.bin of=$@ bs=512 seek=2 count=2 conv=notrunc
 	@sync
 
 $(build)/boot.bin: src/bootloader/boot.nasm
