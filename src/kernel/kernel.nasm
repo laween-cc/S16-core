@@ -217,6 +217,7 @@ raw_drawPixels:
     ; AX
     ; DX
 
+    inc bl
     mov cl, bl
     xor ch, ch ; 0x00
     .draw:
