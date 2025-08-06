@@ -39,7 +39,7 @@ org 0x0000
     mov es, ax
     mov di, 0x7C00
 
-    mov cx, 0x100 ; 256 WORDS (512 bytes)
+    mov cx, 0x200 ; 512 WORDS (1024 bytes)
 
     ; shr cx, 1 ; divide cx by 2 (WORD)
 
@@ -94,7 +94,7 @@ start:
     mov ah, 0x02
 
         ; params
-        mov al, 1
+        mov al, 2
         mov ch, 0
         mov cl, 3
         mov dh, 0
