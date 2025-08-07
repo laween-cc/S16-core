@@ -4,8 +4,6 @@ org 0x7C00
 ; characters
 %define WHITE_SPACE 0x00
 %define A 0x08
-%define B 0x10
-%define C 0x18
 
 ; colors
 %define BLACK 0x00 
@@ -19,10 +17,10 @@ org 0x7C00
 ; macros
 
 %macro drawPixels 5
-    ; 1: X
-    ; 2: Y
-    ; 3: width
-    ; 4: height
+    ; 1: X ; 0 - 319
+    ; 2: Y ; 0 - 199
+    ; 3: width ; 1 - 320
+    ; 4: height ; 1 - 200
     ; 5: color
 
     mov ax, %1
@@ -43,8 +41,8 @@ org 0x7C00
 %endmacro
 
 %macro drawChar 4
-    ; 1: X
-    ; 2: Y
+    ; 1: X ; 0 - 319
+    ; 2: Y ; 0 - 199
     ; 3: CHAR
     ; 4: color
 
@@ -57,8 +55,8 @@ org 0x7C00
 %endmacro
 
 %macro drawNumber 4
-    ; 1: X
-    ; 2: Y
+    ; 1: X ; 0 - 319
+    ; 2: Y ; 0 - 199
     ; 3: NUMBER
     ; 4: color
 
@@ -91,9 +89,9 @@ kstart:
 
     setBackground BLUE
 
-    drawPixels 0, 190, 320, 10, RED
-
     drawChar 0, 0, A, RED
+
+    drawPixels 160, 0, 50, 199, RED
 
     jmp $
 
@@ -128,14 +126,22 @@ font:
     db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; V
     db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; X
     db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; Y
-    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; Z
+    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; 1
+    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; 2
+    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; 3
+    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; 4
+    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; 5
+    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; 6
+    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; 7
+    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; 8
+    db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ; 9
 
 ; functions
 
 raw_drawBitmap:
     ; params:
-    ; ax -> X (COLUMN)
-    ; dx -> Y (ROW)
+    ; ax -> X (COLUMN) 0 - 319
+    ; dx -> Y (ROW) 0 - 199
     ; bl -> CHAR
     ; bh -> 256bit color
 
@@ -145,7 +151,7 @@ raw_drawBitmap:
     mov es, ax
 
     mov ax, 320
-    imul dx
+    mul dx
     mov di, ax
 
     pop ax
@@ -193,10 +199,10 @@ raw_drawBitmap:
 
 raw_drawPixels:
     ; params:
-    ; ax -> X (COLUMN)
-    ; dx -> Y (ROW)
-    ; si -> width (GROWS RIGHT)
-    ; bl -> height (GROWS DOWN)
+    ; ax -> X (COLUMN) 0 - 319
+    ; dx -> Y (ROW) 0 - 199
+    ; si -> width (GROWS RIGHT) 1 - 320
+    ; bl -> height (GROWS DOWN) 1 - 200
     ; bh -> 256bit color
 
     push es
@@ -206,30 +212,30 @@ raw_drawPixels:
     mov es, ax
 
     mov ax, 320
-    ; push dx
-    imul dx
+    mul dx
     mov di, ax
 
-    ; pop dx
     pop ax
     add di, ax
 
-    ; AX
-    ; DX
-
-    inc bl
+    ; inc si
+    ; inc bl
+    
     mov cl, bl
     xor ch, ch ; 0x00
     .draw:
 
         push cx
+
         mov cx, si
-        .draw_columns:
+        .draw_width: ; columns
             mov byte [es:di], bh
             inc di
-        loop .draw_columns        
+        loop .draw_width        
+        
         pop cx
 
+    ; next row
     add di, 320
     sub di, si
     loop .draw
