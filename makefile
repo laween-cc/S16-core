@@ -24,7 +24,9 @@ $(build)/boot.bin: src/bootloader/boot.nasm
 $(build)/boot2.bin: src/bootloader/boot2.nasm
 	@$(MAKE) -C src/bootloader boot2
 
-$(build)/kernel.bin: src/kernel/kernel.nasm
+override drivers := $(wildcard src/kernel/drivers/*)
+override macros := $(wildcard src/kernel/macros/*)
+$(build)/kernel.bin: src/kernel/kernel.nasm $(drivers) $(macros)
 	@$(MAKE) -C src/kernel
 
 .PHONY: ghex clean qemu
