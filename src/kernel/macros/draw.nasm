@@ -65,6 +65,6 @@
     ; 2: Y ; 0 - 199
     ; return: di (address)
 
-    mov di, %2 * 320 - %1
+    mov di, %2 * 320 + %1
 
 %endmacro
