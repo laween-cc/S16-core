@@ -35,7 +35,7 @@ raw_drawBitmap: ; 8x8 (SKIPS 8TH BYTE)
     .read_byte:
 
         mov ch, 8
-        mov al, [es:di]
+        mov al, [ds:si]
         .draw_bit:
 
             test al, 10000000b
@@ -66,8 +66,8 @@ raw_drawBitmap: ; 8x8 (SKIPS 8TH BYTE)
 raw_drawPixels:
     ; params:
     ; di -> draw address
-    ; ax -> width (GROW RIGHT) 0 - 320
-    ; bh -> height (GROW DOWN) 0 - 200
+    ; ax -> width (GROW RIGHT) ; 0 - 320
+    ; bh -> height (GROW DOWN) ; 0 - 200
     ; bl -> 256bit color
 
     push es
