@@ -19,7 +19,8 @@ org 0x7C00
         mov word [es:di], ax
         add di, 2
 
-    loop .draw
+    dec cx
+    jnz .draw
 
     ; pop es
 
@@ -40,7 +41,6 @@ start:
     ; mov gs, ax
 
     ; stack
-    xor ax, ax ; 0x0000
     mov ss, ax
     mov sp, 0x8000
 

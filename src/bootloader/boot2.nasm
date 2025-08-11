@@ -18,7 +18,8 @@ org 0x0000
         mov word [es:di], ax
         add di, 2
 
-    loop .draw
+    dec cx
+    jnz .draw
 
     ; pop es
 
@@ -59,7 +60,8 @@ org 0x0000
         add di, 2
         add si, 2
 
-    loop .copy_word
+    dec cx
+    jnz .copy_word
 
     ; pop ds
     ; pop es
