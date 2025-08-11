@@ -9,6 +9,7 @@ org 0x7C00
     ; faster loop in 16bit real mode
     ; 1: register to use
     ; 2: jump address if not zero
+    ; WARNING: Prone to overflow if 0 or negative
 
     dec %1
     jnz short %2
@@ -35,6 +36,13 @@ kstart:
     sti
 
     setBackground RED
+
+    getDrawAddress 10, 10
+    mov ax, 300
+    mov bh, 180
+    mov bl, BLUE
+
+    call raw_drawPixels
 
     jmp $
 
