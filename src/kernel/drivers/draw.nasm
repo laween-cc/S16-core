@@ -66,8 +66,8 @@ raw_drawBitmap: ; 8x8 (SKIPS 8TH BYTE)
 raw_drawPixels:
     ; params:
     ; di -> draw address
-    ; ax -> width (GROW RIGHT) ; 0 - 320
-    ; bh -> height (GROW DOWN) ; 0 - 200
+    ; ax -> width (GROW RIGHT) ; 1 - 320 ; WARNING: IF 0 IT WILL CAUSE A OVERFLOW!
+    ; bh -> height (GROW DOWN) ; 1 - 200 ; WARNING: IF 0 IT WILL CAUSE A OVERFLOW!!
     ; bl -> 256bit color
 
     push es
@@ -77,12 +77,13 @@ raw_drawPixels:
 
     .draw_row:
 
+        mov dx, ax
         .draw_column:
 
             mov byte [es:di], bl
             inc di
 
-        fastloop ax, .draw_column
+        fastloop dx, .draw_column
 
         add di, 320
         sub di, ax
