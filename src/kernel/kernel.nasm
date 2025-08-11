@@ -5,6 +5,16 @@ org 0x7C00
 
 %include "macros/draw.nasm"
 
+%macro fastloop 2
+    ; faster loop in 16bit real mode
+    ; 1: register to use
+    ; 2: jump address if not zero
+
+    dec %1
+    jnz short %2
+
+%endmacro
+
 kstart:
     cli
 
@@ -25,8 +35,6 @@ kstart:
     sti
 
     setBackground RED
-
-    drawPixels 10, 10, 300, 180, BLUE
 
     jmp $
 

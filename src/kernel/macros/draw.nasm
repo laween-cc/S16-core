@@ -1,6 +1,8 @@
 ; INCLUDE
 ; MACROS
 
+%define Video_memory_segment 0xA000
+
 ; characters
 %define WHITE_SPACE 0x00
 %define A 0x08
@@ -29,18 +31,6 @@
 %define Y 0xC0
 %define Z 0xC8
 
-; numbers
-%define ZERO 0x00
-%define ONE 0x08
-%define TWO 0x10
-%define THREE 0x18
-%define FOUR 0x20
-%define FIVE 0x28
-%define SIX 0x30
-%define SEVEN 0x38
-%define EIGHT 0x40
-%define NINE 0x48
-
 ; colors (VGA)
 %define BLACK 0x00 
 %define BLUE 0x01
@@ -61,71 +51,26 @@
 
 ; macros
 
-%macro drawPixels 5
-    ; 1: X ; 0 - 319
-    ; 2: Y ; 0 - 199
-    ; 3: width ; 1 - 320
-    ; 4: height ; 1 - 200
-    ; 5: color
-
-    mov ax, %1
-    mov dx, %2
-    mov si, %3
-    mov bl, %4
-    mov bh, %5
-
-    call raw_drawPixels
-%endmacro
-
 %macro setBackground 1
     ; 1: color
 
-    mov al, %1
+    mov bl, %1
 
     call raw_setBackground
 %endmacro
 
-%macro drawChar 4
-    ; 1: X ; 0 - 319
-    ; 2: Y ; 0 - 199
-    ; 3: CHAR
-    ; 4: color
+%macro getDrawAddress 2
+    ; 1: X 0 - 319
+    ; 2: Y 0 - 199
+    ; REGISTERS THAT WILL BE OVERWRITTEN:
+    ; - ax,
+    ; - dx
+    ; return: di (ADDRESS)
 
-    mov ax, %1
+    mov ax, 320
     mov dx, %2
-    mov bl, %3
-    mov bh, %4
-    mov si, characters 
+    mul dx
+    add ax, %1
+    mov di, ax
 
-    call raw_drawBitmap
-%endmacro
-
-%macro drawNumber 4
-    ; 1: X ; 0 - 319
-    ; 2: Y ; 0 - 199
-    ; 3: NUMBER
-    ; 4: color
-
-    mov ax, %1
-    mov dx, %2
-    mov bl, %3
-    mov bh, %4
-    mov si, numbers
-
-    call raw_drawBitmap
-%endmacro
-
-%macro drawSymbol 4
-    ; 1: X ; 0 - 319
-    ; 2: Y ; 0 - 199
-    ; 3: SYMBOL
-    ; 4: color
-
-    mov ax, %1
-    mov dx, %2
-    mov bl, %3
-    mov bh, %4
-    mov si, symbols
-
-    call raw_drawBitmap
 %endmacro
