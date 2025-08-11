@@ -60,17 +60,11 @@
 %endmacro
 
 %macro getDrawAddress 2
-    ; 1: X 0 - 319
-    ; 2: Y 0 - 199
-    ; REGISTERS THAT WILL BE OVERWRITTEN:
-    ; - ax,
-    ; - dx
-    ; return: di (ADDRESS)
+    ; NO REGISTERS!
+    ; 1: X ; 0 - 319
+    ; 2: Y ; 0 - 199
+    ; return: di (address)
 
-    mov ax, 320
-    mov dx, %2
-    mul dx
-    add ax, %1
-    mov di, ax
+    mov di, %2 * 320 - %1
 
 %endmacro
