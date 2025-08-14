@@ -3,12 +3,13 @@ org 0x7C00
 
 ; macros
 
-%include "macros/draw.nasm"
+%include "macros/draw.inc"
+%include "macros/cursor.inc"
 
 %macro fastloop 2
     ; faster loop in 16bit real mode
     ; 1: register to use
-    ; 2: jump address if not zero
+    ; 2: jump address if not zero (SHORT)
     ; WARNING: Prone to overflow if 0 or negative
 
     dec %1
@@ -31,7 +32,7 @@ kstart:
     mov sp, 0x8400
     ; mov bp, sp ; dont need yet
 
-    mov [boot_drive], dl ; save the boot drive
+    mov byte [boot_drive], dl ; save the boot drive
 
     sti
 
@@ -43,6 +44,7 @@ kstart:
     mov bl, BLUE
 
     call raw_drawPixels
+
 
     jmp $
 
@@ -56,4 +58,5 @@ boot_drive: db 0 ; THIS SHOULD BE USED WHEN YOU NEED BOOT DRIVE!! (DL WILL NOW B
 
 ; drivers
 
-%include "drivers/draw.nasm"
+%include "drivers/draw.inc"
+%include "drivers/cursor.inc"
