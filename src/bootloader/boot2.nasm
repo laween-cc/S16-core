@@ -89,7 +89,7 @@ start:
 
     ; read kernel into memory
     ; push es
-    xor ax, ax ; 0x0000
+    ; xor ax, ax ; 0x0000
     mov es, ax
     mov bx, 0x8400
 
