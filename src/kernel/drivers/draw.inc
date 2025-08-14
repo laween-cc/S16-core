@@ -6,7 +6,7 @@
 
 ; variables
 
-background_color: db 0
+; background_color: dw 0
 
 font:
     ; [...][WIDTH]
@@ -27,39 +27,7 @@ raw_drawBitmap: ; 8x8 (SKIPS 8TH BYTE)
     ; bl -> 256bit color
 
     push es
-
-    mov ax, Video_memory_segment
-    mov es, ax
-
-    mov cl, 7
-    .read_byte:
-
-        mov ch, 8
-        mov al, [ds:si]
-        .draw_bit:
-
-            test al, 10000000b
-            jz .skip_draw_bit
-
-            mov byte [es:di], bl
-
-            .skip_draw_bit:
-            shr al, 1
-            inc di
-
-        fastloop ch, .draw_bit
-
-    ; .next_byte:
-    dec cl
-    jz short .done
-
-    add di, 312 ; account for the bit reads
-    inc si
-
-    jmp short .read_byte
-
-    .done:
-
+    
     pop es
     ret
 
@@ -93,7 +61,7 @@ raw_drawPixels:
     pop es
     ret
 
-raw_setBackground: ; bl (256bit color)
+raw_setBackground: ; bx ; WORD ; 256bit color (example: 0x0404)
 
     push es
     
@@ -101,8 +69,7 @@ raw_setBackground: ; bl (256bit color)
     mov es, ax
     xor di, di ; 0x0000
     
-    mov [background_color], bl
-    mov bh, bl
+    ; mov word [background_color], bx
 
     mov cx, 64000
     .fill:
