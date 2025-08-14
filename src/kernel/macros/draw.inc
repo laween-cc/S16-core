@@ -4,32 +4,32 @@
 %define Video_memory_segment 0xA000
 
 ; characters
-%define WHITE_SPACE 0x00
-%define A 0x08
-%define B 0x10
-%define C 0x18
-%define D 0x20
-%define E 0x28
-%define F 0x30
-%define G 0x38
-%define H 0x40
-%define I 0x48
-%define J 0x50
-%define K 0x58
-%define L 0x60
-%define M 0x68
-%define N 0x70
-%define O 0x78
-%define P 0x80
-%define Q 0x88
-%define R 0x90
-%define S 0x98
-%define T 0xA0
-%define W 0xA8
-%define V 0xB0
-%define X 0xB8
-%define Y 0xC0
-%define Z 0xC8
+%define WHITE_SPACE font + 0x00
+%define A font + 0x08
+%define B font + 0x10
+%define C font + 0x18
+%define D font + 0x20
+%define E font + 0x28
+%define F font + 0x30
+%define G font + 0x38
+%define H font + 0x40
+%define I font + 0x48
+%define J font + 0x50
+%define K font + 0x58
+%define L font + 0x60
+%define M font + 0x68
+%define N font + 0x70
+%define O font + 0x78
+%define P font + 0x80
+%define Q font + 0x88
+%define R font + 0x90
+%define S font + 0x98
+%define T font + 0xA0
+%define W font + 0xA8
+%define V font + 0xB0
+%define X font + 0xB8
+%define Y font + 0xC0
+%define Z font + 0xC8
 
 ; colors (VGA)
 %define BLACK 0x00 
@@ -52,9 +52,10 @@
 ; macros
 
 %macro setBackground 1
+    ; NO REGISTERS!
     ; 1: color
 
-    mov bl, %1
+    mov bx, (%1 << 8) | %1 
 
     call raw_setBackground
 %endmacro
