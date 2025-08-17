@@ -69,3 +69,19 @@
     mov di, %2 * 320 + %1
 
 %endmacro
+
+%macro drawPixels 5
+    ; 1: X ; NO REGISTER
+    ; 2: Y ; NO REGISTER
+    ; 3: WIDTH
+    ; 4: HEIGHT
+    ; 5: 256bit color
+
+    mov di, %2 * 320 + %1
+    mov ax, %3
+    mov bh, %4
+    mov bl, %5
+
+    call raw_drawPixels
+
+%endmacro
