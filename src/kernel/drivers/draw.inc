@@ -2,7 +2,8 @@
 ; INCLUDE
 
 ; Notes for feature development:
-; Always perserve data segment registers
+; - Always perserve data segment registers
+; - Any function starting with "raw_" should have a macro for ease of use
 
 ; variables
 
@@ -20,14 +21,43 @@ font:
 
 ; functions
 
-raw_drawBitmap: ; 8x8 (SKIPS 8TH BYTE)
+drawBitmap: ; 8x8 (SKIPS 8TH BYTE) 
     ; params:
     ; ds:si -> bitmap pointer
     ; di -> draw address
     ; bl -> 256bit color
+    ; return: si (8th BYTE)
 
     push es
+
+    mov ax, Video_memory_segment
+    mov es, ax
+
+    mov cl, 7
+    .read_byte:
+
+        mov ch, 8
+        mov al, [si]
+        .read_bit:
+            test al, 10000000b
+            jz short .skip_bit
+
+            ; draw bit
+            mov byte [es:di], bl
+
+            .skip_bit:
+            shl al, 1
+            inc di
+
+        fastloop ch, .read_bit 
+
+    ; .next_byte:
     
+    add di, 312
+    inc si
+
+    fastloop cl, .read_byte
+
     pop es
     ret
 
