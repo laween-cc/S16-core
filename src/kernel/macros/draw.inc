@@ -51,6 +51,9 @@
 
 ; macros
 
+; Notes for feature development:
+; Everything that starts with 'i' is inlined and doesn't rely on a function
+
 %macro setBackground 1
     ; NO REGISTERS!
     ; 1: color
@@ -60,11 +63,13 @@
     call raw_setBackground
 %endmacro
 
-%macro getDrawAddress 2
+%macro igetDrawAddress 2
+    ; Inlined version of getDrawAddress
+    ; Preprocesses the X & Y
     ; NO REGISTERS!
     ; 1: X ; 0 - 319
     ; 2: Y ; 0 - 199
-    ; return: di (address)
+    ; return: di (draw address)
 
     mov di, %2 * 320 + %1
 
