@@ -4,6 +4,7 @@ org 0x7C00
 ; macros
 
 %include "macros/draw.inc"
+%include "macros/cursor.inc"
 
 %macro fastloop 2
     ; faster loop in 16bit real mode
@@ -35,9 +36,7 @@ kstart:
 
     sti
 
-    setBackground RED
-
-    drawPixels 10, 10, 300, 180, BLUE
+    setBackground BLUE
 
     ;.loop:
     ; ...
@@ -56,3 +55,4 @@ boot_drive: db 0 ; THIS SHOULD BE USED WHEN YOU NEED BOOT DRIVE!! (DL WILL NOW B
 ; drivers
 
 %include "drivers/draw.inc"
+%include "drivers/cursor.inc"
