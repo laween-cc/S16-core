@@ -6,7 +6,6 @@
 ; - Bitmaps should be 8x8 so uhh don't act like there 8x16 or 16x16
 
 %macro isetCursorPos 2
-    ; NO REGISTERS
     ; 1: X
     ; 2: Y
 
