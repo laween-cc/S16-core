@@ -31,9 +31,10 @@ disk_error: ; error handling for int 13 failure / other disk related failures
     int 0x10
 
     mov ah, 0x0E
+    
+    ; .log_error_message:
     mov si, disk_error_message
 
-    ; .log_error:
     mov cl, 17
     .write_byte_1:
         mov al, [si]
@@ -42,15 +43,10 @@ disk_error: ; error handling for int 13 failure / other disk related failures
 
     loop cl, .write_byte_1
 
-    mov al, 0x0A
-    int 0x10
-    mov al, 0x0D
-    int 0x10
-
-    mov si, disk_error_message_help
-
     ; .log_error_help:
-    mov cl, 27
+    mov si, error_message_help
+
+    mov cl, 29
     .write_byte_2:
         mov al, [si]
         int 0x10
@@ -63,6 +59,6 @@ disk_error: ; error handling for int 13 failure / other disk related failures
 ; variables
 
 disk_error_message: db "Disk read failure" ; length: 17
-disk_error_message_help: db "Ctrl + alt + del to restart" ; length: 27
+error_message_help: db 0x0A, 0x0D, "Ctrl + alt + del to restart" ; length: 29
 
 times 448 - ($ - $$) db 0 ; PAD the left over space with 0
