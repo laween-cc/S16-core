@@ -107,11 +107,11 @@ start:
         ; ---- fat chain ----
         ; read the fat table and load all of the clusters
         mov word [disk_read_lba_dump_offset], 0x063E ; kernel start
+        mov si, [si + 26]
         .read_fat:
-            mov ax, [si + 26]
-            mov bx, [si + 26]
-            sar ax, 1 ; ax / 2^1 (ax / 2)
-            add bx, ax
+            mov bx, si
+            sar si, 1 ; si / 2^1 (si / 2)
+            add bx, si
             add bx, 0x8200
 
             mov ax, [bx]
@@ -140,6 +140,8 @@ start:
             ; reserved clusters
             ; free clusters
 
+            mov word [preserved_current_cluster_number], ax
+
             ; ---- load cluster pointed to by fat ----
             ; sector to read
             ; (n - 2) * logical_sectors_per_cluster + first_data_sector
@@ -159,6 +161,7 @@ start:
 
             call disk_read_lba
         
+            mov si, [preserved_current_cluster_number]
         jmp .read_fat ; continue the fat chain
         .enter_kernel:
 
@@ -288,6 +291,7 @@ disk_read_lba: ; built for the VBR (I don't recommend copy and pasting this)
 error_message: db "Boot error: " ; length: 12
 error_help_message: db 0x0A, 0x0D, "Ctrl+alt+del to reboot"; length: 24
 
+preserved_current_cluster_number: dw 0
 preserved_bytes_per_logical_sector_log2: db 0
 preserved_first_data_sector: dw 0
 preserved_boot_drive: db 0
