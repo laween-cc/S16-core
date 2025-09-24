@@ -11,10 +11,6 @@ jmp 0x0000:start
 %include "../include/misc.inc"
 %include "../include/fat.inc"
 
-%define disk_read_failure_code '0'
-%define kernel_file_not_found_code '2'
-%define fat12_got_bad_cluster_code '3'
-
 start:
     cli
     
@@ -23,160 +19,134 @@ start:
     mov es, ax
 
     mov ss, ax
-    mov sp, 0x8000 ; reserve 1024 bytes
+    mov sp, 0x7C00
+
+    mov byte [preserved_boot_drive], dl
 
     sti 
 
-    ; ===== load root directory =====
+    ; ===== load IO.SYS =====
+
+    ; ---- get the root_directory_logical_sector ----
     ; numfats * logical_sectors_per_fat + reserved_logical_sectors
 
     mov bp, [0x7C00 + bpb_logical_sectors_per_fat]
 
-    sal bp, 1 ; ax * 2^1 (bp * numfats)
+    sal bp, 1 ; bp * 2^1
 
     mov ax, [0x7C00 + bpb_reserved_logical_sectors]
-    add bp, ax
-
-    ; mov word [disk_read_lba_dump_offset], 0x8000
+    add bp, ax ; logical sector to read
+    
+    ; ---- read one sector ----
+    ; mov word [disk_read_lba_dump_offset], 0x7E00
     mov di, 1
-    call disk_read_lba
+    call vbr_disk_read_lba_abstraction
 
-    ; ===== locate a kernel =====
-    mov si, 0x8020
-    mov cl, 16
+    ; ---- log2 bytes_per_logical_sector ----
+    mov ax, [0x7C00 + bpb_bytes_per_logical_sector]
+    xor cl, cl
+
+    .log2_loop_1:
+        sar ax, 1 ; ax / 2^1 (ax / 2)
+        inc cl
+        cmp ax, 1
+        jne .log2_loop_1
+
+    mov byte [preserved_bytes_per_logical_sector_log2], cl
+
+    ; ---- root directory logical sectors ----
+    ; (root_directory_entries * 32 + bytes_per_logical_sector - 1) / bytes_per_logical_sector
+    mov di, [0x7C00 + bpb_root_directory_entries]
+    sal di, 5 ; di * 2^5 (di * 32)
+    mov bx, [0x7C00 + bpb_bytes_per_logical_sector]
+    dec bx
+    add di, bx
+    sar di, cl
+
+    ; ---- read bytes_per_logical_sector / 32 entries (1 sector worth of entries) ----
+    mov cx, [0x7C00 + bpb_bytes_per_logical_sector]
+    sar cx, 5
+
+    xor dh, dh
 
     .read_entries:
+    mov si, 0x7E00
+    .read_entry:
 
-        cmp byte [si], 0x00 ; end of directory
+        cmp byte [si], 0x00 ; no more files marker
         je .failure
 
-        ; check for kernel attributes    
-        mov al, [si + 11]
-        and al, 00000111b ; read-only, hidden, system
-        cmp al, 00000111b ; 
-        jne .skip_read
+       ; compare the file name with IO.SYS
+        cmp word [si], "IO"
+        jne .skip_read_entry
+        cmp word [si + 2], "  "
+        jne .skip_read_entry
+        cmp word [si + 4], "  "
+        jne .skip_read_entry
+        cmp word [si + 6], "  "
+        jne .skip_read_entry
+        cmp word [si + 8], "SY"
+        jne .skip_read_entry
+        cmp byte [si + 10], "S"
+        jne .skip_read_entry
 
-        ; ===== load the kernel =====
+        ; ===== load IO.SYS (one sector!) =====
 
-        ; ---- first data sector ----
-        ; root_directory_starting_sector + ((root_directory_entries * 32) / bytes_per_logical_sector)
-        mov bx, [0x7C00 + bpb_root_directory_entries]
-        mov di, [0x7C00 + bpb_bytes_per_logical_sector] 
+        ; ---- first logical data sector ----
+        ; root_directory_logical_starting_sector + root_directory_logical_sectors
+        add bp, di
 
-        sal bx, 5 ; bx * 2^5 (bx * 32)
-        xor cl, cl
-
-        ; log2
-        .log2_loop_1:
-            sar di, 1 ; di / 2^1 (di / 2)
-            inc cl
-            cmp di, 1
-            jne .log2_loop_1
-        mov byte [preserved_bytes_per_logical_sector_log2], cl
-
-        sar bx, cl ; bx / 2^log2(bytes_per_logical_sector)
-        add bx, bp ; bx + bp (bx + Root_directory_sector)
-        mov word [preserved_first_data_sector], bx
-
-        ; ---- reading the first cluster ----
-        ; sector to read
-        ; (n - 2) * logical_sectors_per_cluster + first_data_sector
-
+        ; ---- load one sector from the cluster ---- 
+        ; (n - 2) *  logical_sectors_per_cluster + first_logical_data_sector
         mov ax, [si + 26] ; cluster
-        mov cl, [0x7C00 + bpb_logical_sectors_per_cluster] 
-        sub ax, 2 ; ax - 2
+        mov bl, [0x7C00 + bpb_logical_sectors_per_cluster]
+        sub ax, 2
 
-        mul cl ; ax * cl
-        ; mov bx, [preserved_first_data_sector]
-        add ax, bx ; ax + bx (ax + first_data_sector)
+        mul bl ; ax * bl
 
-        mov bp, ax
-        xor ch, ch
-        mov di, cx ; logical sectors per cluster
+        add bp, ax ; logical sector to read
+
+        mov di, 1 ; logical sectors to read
+
         mov word [disk_read_lba_dump_offset], 0x063E
-        call disk_read_lba
+        call vbr_disk_read_lba_abstraction
 
-        ; ---- load the main fat table ----
-        ; read the main fat table into memory (0x0000:0x8200)
-        mov bp, [0x7C00 + bpb_reserved_logical_sectors] 
-        mov di, [0x7C00 + bpb_logical_sectors_per_fat]
+        ; ---- jump to IO.SYS ----
+        jmp 0x063E
 
-        mov word [disk_read_lba_dump_offset], 0x8200
-        call disk_read_lba
+    .skip_read_entry:
+    add si, 32
+    loop cx, .read_entry
 
-        ; ---- fat chain ----
-        ; read the fat table and load all of the clusters
-        mov word [disk_read_lba_dump_offset], 0x063E ; kernel start
-        mov si, [si + 26]
-        .read_fat:
-            mov bx, si
-            sar si, 1 ; si / 2^1 (si / 2)
-            add bx, si
-            add bx, 0x8200
+    cmp dh, 1
+    je .failure
 
-            mov ax, [bx]
-            test word [si + 26], 1 ; 0th bit
-            jz .even_cluster
+    ; ---- read the entire root directory into 0x7E00 ----
 
-            .odd_cluster:
+    dec di ; - 1 sectors to read (we already read 1 sector)
+    inc bp ; + 1 starting sector (we already read 1 sector)
+    
+    ; mov word [disk_read_lba_dump_offset], 0x7E00
+    call vbr_disk_read_lba_abstraction
 
-            ; (n >> 4) & 0x0FFF
-            shr ax, 4
-            and ax, 0x0FFF
-            jmp .done_cluster
+    mov ax, di
+    mov cl, [preserved_bytes_per_logical_sector_log2]
+    sal ax, cl
+    mov cx, ax
 
-            .even_cluster:
+    dec bp ; .read_entry relys on BP being the starting sector of the root directory
+    inc di ; .read_entry relys on DI being the amount of sectors the root directory has
 
-            ; n & 0x0FFF
-            and ax, 0x0FFF
-
-            .done_cluster:
-            cmp ax, 0x0FF8
-            jge .enter_kernel
-            cmp ax, 0x0FF7
-            mov cl, fat12_got_bad_cluster_code
-            je error_screen
-            ; ignoring:
-            ; reserved clusters
-            ; free clusters
-
-            mov word [preserved_current_cluster_number], ax
-
-            ; ---- load cluster pointed to by fat ----
-            ; sector to read
-            ; (n - 2) * logical_sectors_per_cluster + first_data_sector
-            sub ax, 2 ; ax - 2
-            xor bh, bh
-            mov bl, [0x7C00 + bpb_logical_sectors_per_cluster]
-            mov di, bx
-            mul bl ; ax * bl
-            add ax, [preserved_first_data_sector] ; ax + first_data_sector
-            mov bp, ax
-
-            ; offset disk_read_lba_dump_offset by logical_sectors_per_cluster * bytes_per_logical_sector
-            ; logical_sectors_per_cluster * 2^log2(bytes_per_logical_sector)
-            mov cl, [preserved_bytes_per_logical_sector_log2]
-            sal bx, cl
-            add word [disk_read_lba_dump_offset], bx
-
-            call disk_read_lba
-        
-            mov si, [preserved_current_cluster_number]
-        jmp .read_fat ; continue the fat chain
-        .enter_kernel:
-
-        jmp 0x063E ; jump to kernel
-
-    .skip_read:
-    add si, 32 ; next entry
-    loop cl, .read_entries
-
+    mov dh, 1
+    jmp .read_entries
+    
     .failure:
-    mov cl, kernel_file_not_found_code
-    ; jmp error_screen
+    mov si, error_no_IO_SYS
+    mov ch, 30
 
 error_screen: ; int 13h read failures / other errors
-    ; cl -> acsii_error_code
+    ; si -> error_message
+    ; ch -> length
 
     xor ah, ah ; reset video mode to clear screen
     mov al, 0x03
@@ -185,8 +155,6 @@ error_screen: ; int 13h read failures / other errors
     mov ah, 0x0E
 
     ; ===== error_message =====
-    mov si, error_message
-    mov ch, 12
     .write_1:
         mov al, [si]
         int 0x10
@@ -194,14 +162,10 @@ error_screen: ; int 13h read failures / other errors
 
     loop ch, .write_1
 
-    ; ---- error code ----
-    mov al, cl
-    int 0x10
-
     ; ===== error_help_message =====
     mov si, error_help_message
 
-    mov cl, 24
+    mov cl, 28
     .write_2:
         mov al, [si]
         int 0x10
@@ -213,9 +177,9 @@ error_screen: ; int 13h read failures / other errors
 
 ; functions
 
-disk_read_lba: ; built for the VBR (I don't recommend copy and pasting this)
+vbr_disk_read_lba_abstraction: ; built for the VBR (I don't recommend copy and pasting this)
     ; dumps the sectors into disk_read_lba_dump_offset
-    ; es -> 0x0000
+    ; es should be 0x0000
     ; dl -> boot drive
     ; di -> sectors to read
     ; bp -> starting sector
@@ -230,78 +194,99 @@ disk_read_lba: ; built for the VBR (I don't recommend copy and pasting this)
     ; otherwise we need to use int 13,2h
 
     ; ===== LBA -> CHS =====
+    ; cylinder = lba / (hpc * spt)
+    ; temp_remainder = lba % (hpc * spt)
+    ; head = temp / spt
+    ; sector = temp % spt + 1
 
-    mov ax, [0x7C00 + bpb_physical_sectors_per_track] 
-    mov bl, [0x7C00 + bpb_number_of_heads] 
+    push es
+    push di
+    mov ah, 0x08
+    int 0x13
 
-    ; I can't really optimize this part without making some other part of it slower or breaking support for some storage devices / majority of storage devices
+    ; cl = spt
+    ; dh = hpc
 
-    mul bl ; (SPT * HPC)
+    mov si, error_disk_read
+    mov ch, 17
+    jc error_screen
 
-    mov byte [preserved_boot_drive], dl
+    inc dh ; make it the actual number of heads (because it starts from 0 - X)
+    and cl, 00111111b ; zero out bits 7 - 6
 
+    xor ah, ah
+    mov al, dh
+    mul cl ; ax * cl
+
+    ; cylinder
+    xor dx, dx
     mov bx, ax
-    mov ax, bp
-    xor dx, dx
-    div bx
-    mov cx, ax
+    mov ax, bp ; LBA
+    div bx ; dx:ax / bx
+    mov bx, ax
 
-    mov ax, dx ; remainder
-    mov bx, [0x7C00 + 0x018]
+    ; head
+    mov ax, dx ; remainder (temp)
     xor dx, dx
-    div bx
-    inc dx ; remainder + 1
+    div cl ; dx:ax / cl
     mov dh, al
 
-    shl cl, 6 ; zero 0 - 5 bits
-    and dl, 00111111b ; mask 0 - 5 bits
-    or cl, dl ; combine the bits
+    mov cx, bx ; put cylinder in right register for int 13,2h
 
-    ; ===== int 13,2h =====
+    ; sector
+    inc ah
+
+    shl cl, 6 ; zero bits 0 - 5
+    and ah, 00111111b ; zero bits 7 - 6
+    or cl, ah ; combine the bits
+    pop di
+    pop es
+
+    mov dl, [preserved_boot_drive] ; restore the boot drive
     mov bx, [disk_read_lba_dump_offset]
     mov ax, di
     mov ah, 0x02
-    mov dl, [preserved_boot_drive]
 
     int 0x13
 
-    mov cl, disk_read_failure_code
+    mov si, error_disk_read
+    mov ch, 17
     jc error_screen
 
     ret
 
     .disk_extensions:
-    
     ; ===== int 13,42h =====
 
     ; load starting sector and sectors to read into DAP
     mov word [disk_address_packet + 0x02], di
     mov word [disk_address_packet + 0x08], bp
+    ; mov word [disk_address_packet + 0x06], es
 
     mov ah, 0x42
     mov si, disk_address_packet
     int 0x13
 
-    mov cl, disk_read_failure_code
+    mov si, error_disk_read
+    mov ch, 17
     jc error_screen
 
     ret
 
 ; variables
-error_message: db "Boot error: " ; length: 12
-error_help_message: db 0x0A, 0x0D, "Ctrl+alt+del to reboot"; length: 24
+error_disk_read: db "Disk read failure" ; length: 17
+error_no_IO_SYS: db "Failed to find IO.SYS on disk?" ; length: 30 
+error_help_message: db 0x0A, 0x0D, "Ctrl + alt + del to reboot"; length: 28
 
-preserved_current_cluster_number: dw 0
-preserved_bytes_per_logical_sector_log2: db 0
-preserved_first_data_sector: dw 0
+preserved_bytes_per_logical_sector_log2: dw 0
 preserved_boot_drive: db 0
 
 disk_address_packet: ; for int 13,42h
     db 0x10 ; size of dap
     db 0 ; reserved byte
     dw 0 ; sectors to read
-    dw 0x0000
-disk_read_lba_dump_offset: dw 0x8000 ; offset
+disk_read_lba_dump_offset: dw 0x7E00 ; offset
+    dw 0x0000 ; segment 
     dq 0 ; start of sector
 
 times 448 - ($ - $$) db 0 ; pad to 448 bytes
