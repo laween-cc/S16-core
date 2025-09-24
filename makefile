@@ -21,7 +21,7 @@ $(build)/img/S16-$(os_version)-floppy.img: $(build)/vbr.bin $(build)/IO.SYS
 $(build)/vbr.bin: src/boot/vbr.nasm
 	$(MAKE) -C src/boot/
 
-$(build)/IO.SYS: src/system/io.nasm
+$(build)/IO.SYS: src/io/io.nasm
 	$(MAKE) -C src/io/
 
 .PHONY: clean
