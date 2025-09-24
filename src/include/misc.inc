@@ -1,3 +1,6 @@
+%ifndef MISC_INC
+%define MISC_INC
+
 %macro loop 2
     ; the loop instruction is slow so I am going to redefine it
     ; 1: register to decrement
@@ -18,3 +21,5 @@
         jmp %%._hang_loop
 
 %endmacro
+
+%endif
