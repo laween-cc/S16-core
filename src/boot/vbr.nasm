@@ -155,7 +155,7 @@ start:
         mov di, 0x0500
         mov cx, 61
         ; cld
-        repe movsb ; using movsb to save bytes
+        rep movsb ; using movsb to save bytes
 
         ; ===== jump to IO.SYS =====
         jmp 0x05CD
