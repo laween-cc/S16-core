@@ -72,7 +72,7 @@ start:
     mov di, 0x0542
     mov cx, disk_read_abstraction_end - disk_read_abstraction
     ; cld
-    repe movsb ; using movsb to save bytes
+    rep movsb ; using movsb to save bytes
 
     ; ===== expose disk_read_abstraction =====
     ; int 20h
@@ -280,7 +280,7 @@ disk_read_abstraction:
 
     ; put sector in the right place
     shl cl, 6 ; shift bits 1 - 0 to 7 - 6 and zero out bits 5 - 0
-    and ah, 00111111b ; zero out bits 7 - 6
+    ; and ah, 00111111b ; zero out bits 7 - 6
     or cl, ah ; combine the bits
 
     pop dx  
