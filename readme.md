@@ -5,7 +5,7 @@ It's purpose is to be:
 - small - fits in around ~4KiB
 - performant - trying my best to optimize it!
 - simple - no weird complex booting or requirements
-- effective - does exactly what a single-volume operating system does!
+- effective - does exactly what a single-volume operating system **SHOULD** do!
 
 Use cases:
 - embedded
