@@ -1,0 +1,37 @@
+Recommended implemantation:
+
+- Read first sector of root ONCE
+
+- Ensure entries in root are < 16 (optional, but recommended)
+
+- Ensure the system has at LEAST 80KiB of usable memory (optional, but recommend)
+
+- Locate IO.SYS in the first sector of root (read 16 entries)
+
+- Read & dump first cluster of IO.SYS to physical address 0x0000:0x0500
+
+- Follow fat chain ONCE to get second cluster of IO.SYS (IF no cluster found then skip to performing a jump)
+
+- Read & dump second cluster of IO.SYS to physical address 0x0000:0x0700
+
+- Perform a NEAR jump to first loaded cluster of IO.SYS (0x0000:0x0500)
+
+If error:
+
+- Clear the screen (recommend resetting the video mode to VGA 80x25)
+
+- Write "VBR ERROR?" to the screen
+
+- Halt (optionally you can wait for a key press and then cold reboot)
+
+Disk service to use:
+
+Recommend using bios int 13,2h for reliability! Optionally you can also use int 13,42h, but that may not work on some older bios.
+
+Goal:
+
+Load IO.SYS (which is 1KiB) at physical address 0x0000:0x0500 and handle control (REQUIRED).
+
+Notes:
+
+Feel free to try different methods in the VBR!
