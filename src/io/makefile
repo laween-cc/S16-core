@@ -1,5 +1,5 @@
 override build := ../../build
 
-$(build)/IO.SYS: io.nasm
+$(build)/io.sys: io.nasm
 	@mkdir -p $(dir $@)
 	nasm -f bin $< -o $@
