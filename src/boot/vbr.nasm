@@ -12,8 +12,8 @@ org 0x7C3E ; 0x7C00 + 62 (past the BPB)
 %include "../include/misc.inc"
 
 ; precomputing to save bytes and cycles in the VBR (btw the OS will not use these)
-%define precompute_root_start            0x6000
-%define precompute_first_data            0x6001
+%define precompute_root_start 0x6000
+%define precompute_first_data 0x6001
 %define precompute_log2_bytes_per_sector 0x6002 
 
 start: ; bios SHOULD have loaded the boot drive in dl
@@ -27,7 +27,7 @@ start: ; bios SHOULD have loaded the boot drive in dl
     mov ss, cx
     mov sp, 0x7C00
 
-    sti
+    ; sti ; whats the point in enabling hardware interrupts during this stage? Other than having stack over flows
     
     ; ===== read first sector of root =====
     ; reserved_logical_sectors + (2 * logical_sectors_per_fat)
@@ -55,9 +55,9 @@ enforce:
     jmp error_screen
     .valid_amount_of_entries:
     
-    ; ---- enforce system to have at LEAST have 80KiB of usable memory ----
+    ; ---- enforce system to have at LEAST have 128KiB of usable memory ----
     int 0x12
-    cmp ax, 80
+    cmp ax, 128
     jl error_screen
 
     ; ...
@@ -195,6 +195,7 @@ error_screen: ; tried to make this as small as possible (to save bytes) without 
     loop cl, .write_byte
 
     ; ---- halt until key press & cold reboot ----
+    sti ; enable hardware interrupts so we can get keyboard input again
     xor ah, ah
     int 0x16
     int 0x19
@@ -260,8 +261,8 @@ read_disk:
 
 ; variables
 
-io_file_name:  db "IO      "   ; length: 8
-io_extension:  db "SYS"        ; length: 3
+io_file_name: db "IO      " ; length: 8
+io_extension: db "SYS" ; length: 3
 error_message: db "VBR ERROR?" ; length: 10
 
 times 446 - ($ - $$) db 0 ; pad to 446 bytes
