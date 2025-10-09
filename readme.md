@@ -11,7 +11,7 @@ Use cases:
 - embedded
 - learning - great for teaching beginners how to make a real operating system!
 - retro computing fun - feels like you're using MS/IBM-DOS again!
-- hobby projects - build little MS/IBM-DOS apps, but got tired of the same thing and wanted something new!
+- hobby projects - maybe you were building little MS/IBM-DOS apps, but got tired of the same thing and wanted something new!
 
 S16 can be booted from pretty much every storage device (as long as it uses proper fat12).
 
