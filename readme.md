@@ -31,6 +31,6 @@ Simply loads ``IO.SYS`` from fat12 partition to physical address ``0x0000:0x0500
 
 [SPEC](src/boot/spec.txt)
 
-# License
+## License
 
 [MIT](license)
