@@ -20,22 +20,22 @@ start: ; bios SHOULD have loaded the boot drive in dl
     cli
 
     ; ===== set up registers =====
-    xor ax, ax
-    mov ds, ax
-    mov es, ax
+    xor cx, cx
+    mov ds, cx
+    mov es, cx
 
-    mov ss, ax
+    mov ss, cx
     mov sp, 0x7C00
 
     sti
     
     ; ===== read first sector of root =====
     ; reserved_logical_sectors + (2 * logical_sectors_per_fat)
-    mov ch, [0x7C00 + 0x00E]
+    mov al, [0x7C00 + 0x00E]
     mov cl, [0x7C00 + 0x016]
     sal cl, 1
-    add cl, ch
-    xor ch, ch
+    add cl, al
+    ; xor ch, ch
     mov byte [precompute_root_start], cl
 
     mov dh, 1 
