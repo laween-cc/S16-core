@@ -1,59 +1,25 @@
 [bits 16]
 org 0x7C3E ; 0x7C00 + 62 (past the BPB)
 
+; VBR is simple and dumb
+; Just load IO.SYS to physical address 0x0000:0x0500 and hand control!
+
 ; titles format:
 ; ===== major section in label =====
-; ===== sub section in label =====
-
-; vbr error codes:
-; 0xAE -> Failed to locate IO.SYS
-
-; disk failure codes: (uses bios)
-; 0x00  no error
-; 0x01  bad command passed to driver
-; 0x02  address mark not found or bad sector
-; 0x03  diskette write protect error
-; 0x04  sector not found
-; 0x05  fixed disk reset failed
-; 0x06  diskette changed or removed
-; 0x07  bad fixed disk parameter table
-; 0x08  DMA overrun
-; 0x09  DMA access across 64k boundary
-; 0x0A  bad fixed disk sector flag
-; 0x0B  bad fixed disk cylinder
-; 0x0C  unsupported track/invalid media
-; 0x0D  invalid number of sectors on fixed disk format
-; 0x0E  fixed disk controlled data address mark detected
-; 0x0F  fixed disk DMA arbitration level out of range
-; 0x10  ECC/CRC error on disk read
-; 0x11  recoverable fixed disk data error, data fixed by ECC
-; 0x20  controller error (NEC for floppies)
-; 0x40  seek failure
-; 0x80  time out, drive not ready
-; 0xAA  fixed disk drive not ready
-; 0xBB  fixed disk undefined error
-; 0xCC  fixed disk write fault on selected drive
-; 0xE0  fixed disk status error/Error reg = 0
-; 0xFF  sense operation failed
-
-; what the VBR does: (not in order)
-; stores boot drive at a known address
-; exposes a reliable and safe disk read abstraction through IVT (int 0x20)
-; stores root directory logical starting sector at a known address
-; stores root directory logical sectors at a known address
-; stores first logical data sector at a known address
-; loads the entire root directory into memory
-; locates IO.SYS on disk
-; loads one sector of IO.SYS in memory
-; copies the BPB above IO.SYS in memory
-; jumps to IO.SYS in memory
+; ===== minor section in label =====
 
 ; macros
 %include "../include/misc.inc"
 
-start:
+; precomputing to save bytes and cycles in the VBR (btw the OS will not use these)
+%define precompute_root_start            0x6000
+%define precompute_first_data            0x6001
+%define precompute_log2_bytes_per_sector 0x6002 
+
+start: ; bios SHOULD have loaded the boot drive in dl
     cli
 
+    ; ===== set up registers =====
     xor ax, ax
     mov ds, ax
     mov es, ax
@@ -61,311 +27,241 @@ start:
     mov ss, ax
     mov sp, 0x7C00
 
-    ; ===== store the boot drive =====
-    mov byte [boot_drive], dl ; DX is now free to use
-
     sti
+    
+    ; ===== read first sector of root =====
+    ; reserved_logical_sectors + (2 * logical_sectors_per_fat)
+    mov ch, [0x7C00 + 0x00E]
+    mov cl, [0x7C00 + 0x016]
+    sal cl, 1
+    add cl, ch
+    xor ch, ch
+    mov byte [precompute_root_start], cl
 
-    ; ===== copy disk_read_abstraction to a known address =====
-    ; 0x0742
-    mov si, disk_read_abstraction
-    mov di, 0x0542
-    mov cx, disk_read_abstraction_end - disk_read_abstraction
-    ; cld
-    rep movsb ; using movsb to save bytes
+    mov dh, 1 
+    mov bx, 0x7E00 ; above the VBR
+    call read_disk
 
-    ; ===== expose disk_read_abstraction =====
-    ; int 20h
-    mov word [0x20 * 4], 0x0542
-    mov word [0x20 * 4 + 2], 0x0000
+enforce:
+    ; ---- enforce < 16 entries in root ----
+    mov cl, 16
+    .enforce_16_entries:
+   
+    cmp byte [bx], 0x00 ; no more entries marker
+    je .valid_amount_of_entries
+    
+    add bx, 32
+    loop cl, .enforce_16_entries
+    jmp error_screen
+    .valid_amount_of_entries:
+    
+    ; ---- enforce system to have at LEAST have 80KiB of usable memory ----
+    int 0x12
+    cmp ax, 80
+    jl error_screen
 
-    ; ===== get the root directory logical starting sector ====
-    ; reserved_logical_sectors + (2 (numfats) * logical_sectors_per_fat)
-    mov al, [0x7C00 + 0x016] ; logical sectors per fat
-    sal al, 1
-    add al, [0x7C00 + 0x00E] ; reserved logical sectors
-    mov byte [root_directory_logical_starting_sector], al
+    ; ...
 
-    ; ===== get the root directory logical sectors =====
-    ; (root_directory_entires * 32) / bytes_per_logical_sector
-    mov bx, [0x7C00 + 0x011] ; root directory entries
-    mov dx, [0x7C00 + 0x00B] ; bytes per logical sector
-    sal bx, 5
-
-    xor cl, cl
-    .log2_loop_1:
-        sar dx, 1
-        inc cl
-        cmp dx, 1
-        jne .log2_loop_1
-
-    sar bx, cl
-    xor bh, bh
-    mov byte [root_directory_logical_sectors], bl
-
-    ; ===== read root directory into memory (all of it) =====
-    mov dl, [boot_drive]
-    mov byte [dap_starting_sector], al
-    mov byte [dap_sectors_to_read], bl
-    mov si, disk_address_packet
-    int 0x20
-
-    jc error_screen
-
+sys:
     ; ===== locate IO.SYS =====
-    mov dx, bx
-    sal dx, cl
-    sar dx, 5
-    mov si, 0x7E00 + 32
+    mov bx, 0x7E00
+    mov cl, 16
+    .read_entry:
+    
+    cmp byte [bx], 0x00 ; no more entries marker
+    je error_screen
 
-    .IO_SYS:
-        cmp byte [si], 0x00 ; end (stop reading)
-        je .IO_SYS_failure
+    mov si, bx
+    mov di, io_file_name
+    mov cx, 11
+    ; cld
+    repe cmpsb ; using cmpsb to save bytes 
+    jnz .skip_entry
 
-        mov cx, 11
-        mov di, io_file_name
-        ; cld
-        repe cmpsb ; using cmpsb to save bytes
-        jnz .IO_SYS_skip
+    ; IO.SYS found!
+    mov si, bx ; switching registers
+    
+    ; ===== first data sector =====
+    ; root_directory_sectors = (root_directory_entires * 32) / bytes_per_sector
+    ; first_data_sector = [precompute_root_start] + root_directory_sectors
+    mov ax, [0x7C00 + 0x011]
+    sal ax, 5
+    mov bx, [0x7C00 + 0x00B]
+    xor cl, cl
 
-        ; ===== read the first cluster into memory =====
-        ; first_logical_data_sector = root_directory_logical_sectors + root_directory_logical_starting_sector
-        ; (N - 2) * logical_sectors_per_cluster + first_logical_data_sector
+    .log2_loop:
+        sar bx, 1
+        inc cl
+        cmp bx, 1
+        jne .log2_loop
 
-        add bl, al ; sense we're using fat12.. this will fit!
-        mov byte [first_logical_data_sector], bl
+    mov byte [precompute_log2_bytes_per_sector], cl    
+    sar ax, cl
 
-        mov ax, [si + 15]
-        sub ax, 2
-        mov dh, [0x7C00 + 0x00D] ; logical sectors per cluster
-        mul dh
-        add ax, bx
+    mov cl, [precompute_root_start]
+    add cl, al
+    mov byte [precompute_first_data], cl
+    ; xor ch, ch ; already zerod out
 
-        mov dl, [boot_drive]
-        mov byte [dap_sectors_to_read], 1
-        mov word [dap_starting_sector], ax
-        mov word [dap_offset], 0x05CD
-        mov si, disk_address_packet
-        int 0x20
+    ; ===== read first cluster to 0x0000:0x0500 =====
+    ; (n - 2) * logical_sectors_per_cluster + first_data_sector
+    mov ax, [si + 26]
+    sub ax, 2
+    mov dh, [0x7C00 + 0x00D]
+    mul dh
+    add cx, ax
+    mov bx, 0x0500
+    call read_disk
 
-        jc error_screen
+    ; ===== attempt follow fat chain ONCE =====
+    ; if no cluster then skip to performing near jump
+    ; if cluster then load at 0x0000:0x0700
+    ; offset = N + (N / 2)
+    ; sector_to_read = reserved_logical_sectors + (offset / bytes_per_sector)
+    ; offset_in_sector_to_read = offset & bytes_per_sector - 1
+    mov ax, [si + 26]
+    mov bx, [si + 26]
+    sar bx, 1
+    add ax, bx ; offset
+    push ax ; preserve
 
-        ; ===== copy the VBR above IO.SYS & stored variables in memory =====
-        mov si, 0x7C00
-        mov di, 0x0500
-        mov cx, 61
-        ; cld
-        rep movsb ; using movsb to save bytes
+    mov cl, [precompute_log2_bytes_per_sector]
+    sar ax, cl
+    mov cx, [0x7C00 + 0x00E]
+    add ax, cx ; sector to read
 
-        ; ===== jump to IO.SYS =====
-        jmp 0x05CD
+    mov cx, ax
+    mov dh, 1
+    mov bx, 0x8000
+    call read_disk
+    pop bx ; offset
 
-    .IO_SYS_skip:
-    add si, 32
-    loop dx, .IO_SYS
+    mov cx, [0x7C00 + 0x00B0]
+    dec cx
+    and bx, cx ; offset in sector to read
+    add bx, 0x8000
+    mov bx, [bx]
 
-    .IO_SYS_failure:
-    mov ah, 0xAE
+    test word [si + 26], 1
+    jz .even
 
-error_screen:
-    ; ah -> error code
+    ; ---- odd ----
+    ; N >> 4
+    shr bx, 4
+    jmp .done_next_cluster
+    ; ---- even ----
+    ; N & 0x0FFF
+    .even:
+    and bx, 0x0FFF
+    .done_next_cluster:
+    cmp bx, 0x0FF8
+    jge .jmp_io_sys ; assume 1KiB already loaded
+    cmp bx, 0x0002
+    jl error_screen ; assume corrupted fat12
+    cmp bx, 0x0FEF
+    jg error_screen ; assume corrupted fat12
 
-    ; ===== error code (hex) to acsii =====
-    mov al, ah
-    shr ah, 4 ; shift bits 7 - 4 to bits 0 - 4 and zero out bits 7 - 4
-    and al, 00001111b ; zero out bits 7 - 4
+    ; ===== read last cluster to 0x0000:0x0700 =====
+    ; (N - 2) * logical_sectors_per_cluster + first_data_sector
+    mov ax, bx
+    sub ax, 2
+    mov dh, [0x7C00 + 0x00D]
+    mul dh
+    mov cl, [precompute_first_data]
+    xor ch, ch
+    add cx, ax
+    mov bx, 0x0700
+    call read_disk
 
-    cmp ah, 9
-    jle .digit_1
-    add ah, 7 ; add 7 to bring it towards the A - Z (in acsii)
-    .digit_1:
-    add ah, '0'
+    .jmp_io_sys:
+    jmp 0x0500 ; handle control to IO.SYS
+    .skip_entry:
+    add bx, 32
+    loop cl, .read_entry
 
-    cmp al, 9
-    jle .digit_2
-    add al, 7 ; add 7 to bring it towards the A - Z (in acsii)
-    .digit_2:
-    add al, '0'
-
-    mov bx, ax
-
-    ; ===== clear the screen (reset video mode) =====
-    xor ah, ah 
+error_screen: ; tried to make this as small as possible (to save bytes) without having a trash error screen
+    ; ---- clear screen ----
+    xor ah, ah
     mov al, 0x03
     int 0x10
 
-    ; ===== error message =====
+    ; ---- write error message to screen ----
+    mov cl, 10
+    mov si, error_message
     mov ah, 0x0E
-    mov si, boot_error_message
-    mov ch, 14
-
-    .error_message_loop:
-        mov al, [si]
+    .write_byte:
+        lodsb
         int 0x10
-        inc si
+    loop cl, .write_byte
 
-    loop ch, .error_message_loop
+    ; ---- halt until key press & cold reboot ----
+    xor ah, ah
+    int 0x16
+    int 0x19
 
-    ; ===== error code =====
-    mov al, bh
-    int 0x10
-    mov al, bl
-    int 0x10
-
-    halt
-
-; exposed functions
-
-disk_read_abstraction:
+read_disk:
     ; dl -> boot drive
-    ; ds:si -> disk address packet
-    ; return:
-    ; CF = 0 = success
-    ; CF = 1 = failure
-    ; AH = disk operation status
-    ; AH = 0x42 = int 13,8h failure during legacy read
-    
-    push bx
-    push ax
-    push dx
-    push cx
-    push es
-    push di
+    ; dh -> number of sectors to read
+    ; cx -> starting logical sector 
+    ; es:bx -> dump
 
-    ; ===== can we use disk extensions? =====
-    mov ah, 0x41
-    mov bx, 0x55AA
-    int 0x13
+    ; ===== LBS to CHS conversion =====
 
-    jnc .disk_extensions
-    .disk_legacy:
+    push es ; gotta preserve these registers
+    push dx ;
+    push bx ;
 
-    ; ===== get disk information =====
-    mov al, dl ; preserve the boot drive
+    mov bp, cx ; preserve the starting logical sector
     mov ah, 0x08
     int 0x13
-    mov dl, al
-    mov bh, 0x42 ; In case of failure
-
-    jc .quit ; CF is already set 
 
     inc dh ; we need number of heads to start from 1
-    and cl, 00111111b ; make sure we dont use the high cylinder bits (7 - 6)
+    and cl, 00111111b ; zero out bits 7 - 6 cause we need ONLY the sectors per track
 
-    ; ===== LBS to CHS =====
-    push dx ; preserve the boot drive
-    xor ah, ah
-    mov al, dh
-    mul cl ; (HPC * SPT)
-
-    ; cylinder
+    ; ---- cylinder ----
     ; LBS / (HPC * SPT)
-    xor dx, dx
+    mov al, dh
+    xor ah, ah
+    mul cl
+
     mov bx, ax
-    mov ax, [si + 0x08]
+    mov ax, bp
+    xor dx, dx
     div bx
     mov bx, ax
 
-    ; head
+    ; ---- head ----
     ; LBS % (HPC * SPT) / SPT
     mov ax, dx
-    xor dx, dx
     div cl
     
+    ; ---- sector ----
+    ; LBS % (HPC * SPT) % SPT + 1
+    inc ah
+
     mov cx, bx ; put cylinder in the right place
 
-    ; sector
-    ; LBS % (HPC * SPT) % SPT + 1
-    inc ah ; sector starts from 1
-
-    ; put sector in the right place
-    shl cl, 6 ; shift bits 1 - 0 to 7 - 6 and zero out bits 5 - 0
-    ; and ah, 00111111b ; zero out bits 7 - 6
+    shl cl, 6 ; shift higher cylinder bits (0 - 1) to MSB (7 - 6)
+    ; and ah, 00111111b
     or cl, ah ; combine the bits
 
-    pop dx  
-    mov dh, al ; put head in the right place
+    pop bx
+    pop dx
+    pop es
 
-    ; ch = low bits of cylinder
-    ; cl bits 7 - 6 = high bits of cylinder 
-    ; cl bits 5 - 0 = sector number
-    ; dh = head
+    xchg dh, al ; switch registers
 
-    ; ===== int 13,2h =====
-    mov ax, [si + 0x06] ; segment
-    mov es, ax
-    mov al, [si + 0x02] ; sectors to read
-
-    mov di, 3 ; retry counter
-    .disk_legacy_start:
-    mov bx, [si + 0x04] ; offset
-
+    ; ---- int 13,2h ----
     mov ah, 0x02
     int 0x13
-    mov bh, ah ; disk operation status
 
-    jnc .quit
+    jc error_screen ; handling it directly to save bytes
+    ret
 
-    ; ---- retry for int 13,2h ----
-    dec di
-    jz .quit ; CF is already set
-
-    xor ah, ah
-    int 0x13
-    mov bh, ah ; disk operation status
-
-    jc .quit ; CF is already set
-
-    jmp .disk_legacy_start
-    .disk_extensions:
-
-    mov bl, 3 
-
-    .disk_extensions_start:
-    ; ===== disk extensions (int 13,42h) =====
-    mov ah, 0x42
-    ; ds:si -> dap
-    int 0x13
-    mov bh, ah ; disk operation status
-
-    jnc .quit
-
-    ; ---- retry for int 13,42h ----
-    dec bl
-    jz .disk_legacy ; try the legacy method
-
-    ; ---- reset disk ----
-    xor ah, ah 
-    int 0x13
-    mov bh, ah ; disk operation status
-
-    jc .quit ; CF is already set
-
-    jmp .disk_extensions_start
-
-    .quit: ; make sure bh = disk operation status!
-    pop di
-    pop es
-    pop cx
-    pop dx
-    pop ax
-    mov ah, bh ; disk operation status
-    pop bx
-    iret
-disk_read_abstraction_end:
- 
 ; variables
 
-io_file_name: db "IO      " ; length: 8
-io_extension: db "SYS" ; length: 3
-boot_error_message: db "Boot error: 0x" ; length: 14
-
-disk_address_packet:
-    db 0x10 ; size
-    db 0 ; reserved
-dap_sectors_to_read: dw 1        
-dap_offset: dw 0x7E00 
-dap_segment: dw 0x0000
-dap_starting_sector: dq 0
+io_file_name:  db "IO      "   ; length: 8
+io_extension:  db "SYS"        ; length: 3
+error_message: db "VBR ERROR?" ; length: 10
 
 times 446 - ($ - $$) db 0 ; pad to 446 bytes
