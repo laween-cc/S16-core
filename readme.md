@@ -1,6 +1,6 @@
 # S16 - core
 Hello!
-This is S16's core, its purpose is to handle all the I/O stuff setting up a absolute disk driver and a fat12 driver! And then of course load the kernel. Oh by the way this isn't only for S16's kernel, you can also use it for your own operating system (just know that this operates on a single-volume only, but may be extended to support other volumes if you handle it manually and don't use the more stricter services provided)!
+This is S16's core, its purpose is to handle all the I/O stuff, setting up a absolute disk driver and a fat12 driver! And then of course load the kernel. Oh by the way this isn't only for S16's kernel, you can also use it for your own operating system (just know that this operates on a single-volume only, but may be extended to support other volumes if you handle it manually and don't use the more stricter services provided)!
 
 ## S16 boot process
 Basic explaination
