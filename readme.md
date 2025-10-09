@@ -19,7 +19,7 @@ Oh and S16's ``IO.SYS`` is only 1KiB and not ~40KiB like MS-DOS!
 
 ## S16 requirements
 
-- minimum usable memory - 80KiB
+- minimum usable memory - 128KiB
 - max entries in root directory - less than or equal to 16
 - CPU - any **potato**-class 8086 / i386 / x86 processor
 - storage device - fat12 **ONLY!**
