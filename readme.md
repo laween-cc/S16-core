@@ -17,7 +17,7 @@ S16 can be booted from pretty much every storage device (as long as it uses prop
 
 Oh and S16's ``IO.SYS`` is only 1KiB and not ~40KiB like MS-DOS!
 
-# S16 requirements
+## S16 requirements
 
 - minimum usable memory - 80KiB
 - max entries in root directory - less than or equal to 16
@@ -25,7 +25,7 @@ Oh and S16's ``IO.SYS`` is only 1KiB and not ~40KiB like MS-DOS!
 - storage device - fat12 **ONLY!**
 - firmware - legacy / UEFI + CSM
 
-# S16 volume boot record
+## S16 volume boot record
 
 Simply loads ``IO.SYS`` from fat12 partition to physical address ``0x0000:0x0500``
 
