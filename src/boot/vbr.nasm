@@ -9,7 +9,16 @@ org 0x7C3E ; 0x7C00 + 62 (past the BPB)
 ; ===== minor section in label =====
 
 ; macros
-%include "../include/misc.inc"
+%macro loop 2
+    ; the loop instruction is slow so I am going to redefine it
+    ; 1: register to decrement
+    ; 2: address to jump when not 0
+    ; warning: prone to overflows if 0 or negative
+
+    dec %1
+    jnz %2
+
+%endmacro
 
 ; precomputing to save bytes and cycles in the VBR (btw the OS will not use these)
 %define precompute_root_start 0x6000

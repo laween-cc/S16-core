@@ -1,6 +1,6 @@
 override build := ../../build
 
-$(build)/VBR.BIN: vbr.nasm
+$(build)/vbr.bin: vbr.nasm
 	@mkdir -p $(dir $@)
 	nasm -f bin $< -o $@
 
