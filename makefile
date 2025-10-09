@@ -2,7 +2,7 @@ override build := build
 
 os_version := 0.0
 
-$(build)/img/S16-$(os_version)-floppy.img: $(build)/vbr.bin $(build)/IO.SYS
+$(build)/img/S16-$(os_version)-floppy.img: $(build)/VBR.BIN $(build)/IO.SYS
 	@mkdir -p $(dir $@)
 # write the floppy with zeros
 	dd if=/dev/zero of=$@ bs=512 count=2880 conv=notrunc
@@ -11,17 +11,17 @@ $(build)/img/S16-$(os_version)-floppy.img: $(build)/vbr.bin $(build)/IO.SYS
 	mkfs.fat -F 12 -n S16DISK $@
 	@sync
 # inject volume boot record code into sector 0 (preserve JMP instruction, OEM name, BPB, extended BPB and volume name)
-	dd if=$(build)/vbr.bin of=$@ bs=1 seek=62 count=448 conv=notrunc
+	dd if=$(build)/VBR.BIN of=$@ bs=1 seek=62 count=448 conv=notrunc
 	@sync
 # copy IO.SYS into the fat12 partition
 	mcopy -i $@ $(build)/IO.SYS ::IO.SYS
 	mattrib -i $@ +R +H +S ::IO.SYS
 
-$(build)/vbr.bin: src/boot/vbr.nasm
+$(build)/VBR.BIN: src/boot/vbr.nasm
 	$(MAKE) -C src/boot/
 
-$(build)/IO.SYS: src/io.nasm
-	$(MAKE) -C src/
+$(build)/IO.SYS: src/io/io.nasm
+	$(MAKE) -C src/io/
 
 .PHONY: clean
 
