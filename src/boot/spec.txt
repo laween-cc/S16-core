@@ -4,7 +4,7 @@ Recommended implemantation:
 
 - Ensure entries in root are < 16 (optional, but recommended)
 
-- Ensure the system has at LEAST 80KiB of usable memory (optional, but recommend)
+- Ensure the system has at LEAST 128KiB of usable memory (optional, but recommend)
 
 - Locate IO.SYS in the first sector of root (read 16 entries)
 
@@ -30,7 +30,7 @@ Recommend using bios int 13,2h for reliability! Optionally you can also use int 
 
 Goal:
 
-Load IO.SYS (which is 1KiB) at physical address 0x0000:0x0500 and handle control (REQUIRED).
+Load IO.SYS (which is 1KiB) at physical address 0x0000:0x0500, put boot drive in dl, and handle control (REQUIRED).
 
 Notes:
 
