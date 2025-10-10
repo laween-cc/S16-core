@@ -145,7 +145,7 @@ sys:
     call read_disk
     pop bx ; offset
 
-    mov cx, [0x7C00 + 0x00B0]
+    mov cx, [0x7C00 + 0x00B]
     dec cx
     and bx, cx ; offset in sector to read
     add bx, 0x8000
