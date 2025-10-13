@@ -1,0 +1,5 @@
+segment = 0x0D4E
+
+root_cache = 0x0000 = 16KiB
+fat_n1_cache = 0x4000 = 6KiB
+file_content_cache = 0x5800 = 40KiB
