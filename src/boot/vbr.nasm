@@ -190,8 +190,7 @@ sys:
 
 error_screen: ; tried to make this as small as possible (to save bytes) without having a trash error screen
     ; ---- clear screen ----
-    xor ah, ah
-    mov al, 0x03
+    mov ax, 0x0003
     int 0x10
 
     ; ---- write error message to screen ----
@@ -217,13 +216,15 @@ read_disk:
 
     ; ===== LBS to CHS conversion =====
 
-    push es ; gotta preserve these registers
+    push es ; gotta preserve these registers (cause there important for the next steps)
     push dx ;
     push bx ;
 
     mov bp, cx ; preserve the starting logical sector
     mov ah, 0x08
     int 0x13
+
+    jc error_screen ; does not matter if we pop or not.. if we fail to get the drive parameters of the boot disk then we have a critical error
 
     inc dh ; we need number of heads to start from 1
     and cl, 00111111b ; zero out bits 7 - 6 cause we need ONLY the sectors per track
@@ -234,11 +235,10 @@ read_disk:
     xor ah, ah
     mul cl
 
-    mov bx, ax
-    mov ax, bp
+    xchg bp, ax
     xor dx, dx
-    div bx
-    mov bx, ax
+    div bp
+    mov bp, ax
 
     ; ---- head ----
     ; LBS % (HPC * SPT) / SPT
@@ -249,7 +249,7 @@ read_disk:
     ; LBS % (HPC * SPT) % SPT + 1
     inc ah
 
-    mov cx, bx ; put cylinder in the right place
+    mov cx, bp ; put cylinder in the right place
 
     shl cl, 6 ; shift higher cylinder bits (0 - 1) to MSB (7 - 6)
     ; and ah, 00111111b
