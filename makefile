@@ -1,6 +1,6 @@
 override build := build
 
-$(build)/img/S16-core-floppy.img: $(build)/vbr.bin $(build)/io.sys $(build)/boot.syt
+$(build)/img/S16-core-floppy.img: $(build)/vbr.bin $(build)/io.sys $(build)/boot.cfg
 	@mkdir -p $(dir $@)
 # write the floppy with zeros
 	dd if=/dev/zero of=$@ bs=512 count=2880 conv=notrunc
@@ -15,8 +15,8 @@ $(build)/img/S16-core-floppy.img: $(build)/vbr.bin $(build)/io.sys $(build)/boot
 	mcopy -i $@ $(build)/io.sys ::IO.SYS
 	mattrib -i $@ +R +H +S ::IO.SYS
 # copy the BOOT.SYT into the fat12 partition
-	mcopy -i $@ $(build)/boot.syt ::BOOT.SYT
-	mattrib -i $@ +R +H +S ::BOOT.SYT
+	mcopy -i $@ $(build)/boot.cfg ::BOOT.CFG
+	mattrib -i $@ +R +H +S ::BOOT.CFG
 
 $(build)/vbr.bin: src/boot/vbr.nasm
 	$(MAKE) -C src/boot/
@@ -24,7 +24,7 @@ $(build)/vbr.bin: src/boot/vbr.nasm
 $(build)/io.sys: src/io/io.nasm
 	$(MAKE) -C src/io/
 
-$(build)/boot.syt: src/boot.syt
+$(build)/boot.cfg: src/boot.cfg
 	cp $< $@
 
 .PHONY: clean
