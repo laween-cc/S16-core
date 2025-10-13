@@ -14,7 +14,7 @@ $(build)/img/S16-core-floppy.img: $(build)/vbr.bin $(build)/io.sys $(build)/boot
 # copy IO.SYS into the fat12 partition
 	mcopy -i $@ $(build)/io.sys ::IO.SYS
 	mattrib -i $@ +R +H +S ::IO.SYS
-# copy the BOOT.SYT into the fat12 partition
+# copy the BOOT.CFG into the fat12 partition
 	mcopy -i $@ $(build)/boot.cfg ::BOOT.CFG
 	mattrib -i $@ +R +H +S ::BOOT.CFG
 
