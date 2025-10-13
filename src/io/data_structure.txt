@@ -1,0 +1,20 @@
+segment = 0x0000
+
+io_reserved_stack = 0x0D00 = 1KiB (from high memory to low memory)
+
+bpb_start = 0x0D00 = 1 byte
+
+boot_drive = 0x0D3D = 1 byte
+
+root_start = 0x0D3E = 1 byte
+
+root_sectors = 0x0D3F = 1 byte
+
+first_data_sector = 0x0D40 = 1 byte
+
+current_directory_cluster = 0x0D41 = 2 bytes
+
+free_file_descripter_number = 0x0D43 = 1 byte
+
+file_content_cache_bitmap = 0x0D44 = 10 bytes
+
