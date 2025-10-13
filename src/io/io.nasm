@@ -168,13 +168,9 @@ start:
     mov word [0x26 * 4], absolute_write_disk
     mov word [0x26 * 4 + 2], 0x0000
 
-    ; ===== set up fat12 services ======
-    mov word [0x20 * 4], int21_handler
-    mov word [0x20 * 4 + 2], 0x0000
-
 syt:
     ; ===== open & read BOOT.SYT =====
-
+    
     jmp $
 
 kernel:
@@ -251,10 +247,9 @@ lbs_to_chs:
     mov bp, cx ; preserve the LBS
     mov ah, 0x08
     mov dl, al
-    mov al, dh ; in case of failure preserve the register
+    mov al, dh ; in case of failure
     int 0x13
 
-    stc
     jc .end
 
     inc dh ; we need number of heads to start from 1
