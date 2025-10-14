@@ -6,8 +6,8 @@ Interrupt: 25h
 
 Parameters:
 - al - drive number
-- dx - logical sectors to read
-- cx - logical starting sector
+- cx - logical sectors to read
+- dx - logical starting sector
 - es:bx - dump address in memory
 
 Return:
@@ -20,8 +20,8 @@ Interrupt: 26h
 
 Parameters:
 - al - drive number
-- dx - logical sectors to write
-- cx - logical starting sector
+- cx - logical sectors to write
+- dx - logical starting sector
 - es:bx - addess in memory of content to write
 
 Return:

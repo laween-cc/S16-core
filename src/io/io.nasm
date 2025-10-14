@@ -210,18 +210,19 @@ error:
 
 absolute_read_disk: ; int 25h
     ; al -> drive number
-    ; dx -> sectors to read
-    ; cx -> logical starting sector
+    ; cx -> sectors to read
+    ; dx -> logical starting sector
     ; es:bx -> read output
     ; return:
     ; CF = 0 = success
     ; CF = 1 = failure
     ; ah = error code 
 
+
 absolute_write_disk: ; int 26h
     ; al -> drive number
-    ; dx -> sectors to write
-    ; cx -> logical starting sector
+    ; cx -> sectors to write
+    ; dx -> logical starting sector
     ; es:bx -> write input
     ; return:
     ; CF = 0 = success
@@ -230,13 +231,15 @@ absolute_write_disk: ; int 26h
 
 lbs_to_chs:
     ; al -> drive number
-    ; cx -> logical starting sector
+    ; dx -> logical starting sector
     ; returns:
     ; CF = 1 = failed to get drive parameters via int 13,8h?   
     ; ch = low cylinder
     ; cl = 7 - 6 bits = high cylinder
     ; cl = 0 - 5 bits = sector number
     ; dh = head
+    ; preserved:
+    ; everything not returned
 
     push es
     push di
@@ -244,7 +247,7 @@ lbs_to_chs:
     push dx
     push bp
 
-    mov bp, cx ; preserve the LBS
+    mov bp, dx ; preserve the LBS
     mov ah, 0x08
     mov dl, al
     mov al, dh ; in case of failure
