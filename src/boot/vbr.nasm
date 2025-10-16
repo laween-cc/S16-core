@@ -42,7 +42,7 @@ start: ; bios SHOULD have loaded the boot drive in dl
     ; reserved_logical_sectors + (2 * logical_sectors_per_fat)
     mov al, [0x7C00 + 0x00E]
     mov cl, [0x7C00 + 0x016]
-    sal cl, 1
+    shl cl, 1
     add cl, al
     ; xor ch, ch
     mov byte [precompute_root_start], cl
@@ -94,18 +94,18 @@ sys:
     ; root_directory_sectors = (root_directory_entires * 32) / bytes_per_sector
     ; first_data_sector = [precompute_root_start] + root_directory_sectors
     mov ax, [0x7C00 + 0x011]
-    sal ax, 5
+    shl ax, 5
     mov bx, [0x7C00 + 0x00B]
     xor cl, cl
 
     .log2_loop:
-        sar bx, 1
+        shr bx, 1
         inc cl
         cmp bx, 1
         jne .log2_loop
 
     mov byte [precompute_log2_bytes_per_sector], cl    
-    sar ax, cl
+    shr ax, cl
 
     mov cl, [precompute_root_start]
     add cl, al
@@ -130,12 +130,12 @@ sys:
     ; offset_in_sector_to_read = offset & bytes_per_sector - 1
     mov ax, [si + 26]
     mov bx, [si + 26]
-    sar bx, 1
+    shr bx, 1
     add ax, bx ; offset
     push ax ; preserve
 
     mov cl, [precompute_log2_bytes_per_sector]
-    sar ax, cl
+    shr ax, cl
     mov cx, [0x7C00 + 0x00E]
     add ax, cx ; sector to read
 
