@@ -13,7 +13,17 @@ Parameters:
 Return:
 - CF = 0 = success
 - CF = 1 = failure
-- ah = error code
+- ah = bios / non bios error code
+
+Non bios error code:
+- F4 - failed to reset disk during retry
+- 8E - failed to get drive parameters
+
+Information:
+- Handles large sector reads at once
+- Retries 3 times (resets disk every retry)
+- Handles 64KiB segment boundary
+- Loads 512 bytes per sector (relies on BIOS following the IBM spec for int 13,2h)
 
 ## absolute disk write:
 Interrupt: 26h
