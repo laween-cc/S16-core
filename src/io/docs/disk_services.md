@@ -5,9 +5,9 @@ S16-core provides some basic, but critical disk services to help!
 Interrupt: 25h
 
 Parameters:
-- al - drive number
-- cx - logical sectors to read
-- dx - logical starting sector
+- dl - drive number
+- dh - logical sectors to read (1 - 128)
+- cx - logical starting sector (can only address up to 8GB)
 - es:bx - dump address in memory
 
 Return:
@@ -20,21 +20,10 @@ Non bios error code:
 - 8E - failed to get drive parameters
 
 Information:
-- Handles large sector reads at once
-- Retries 3 times (resets disk every retry)
-- Handles 64KiB segment boundary
-- Loads 512 bytes per sector (relies on BIOS following the IBM spec for int 13,2h)
+- handles 64KiB segment boundary
+- retries 3 times before failing
+- during each retry it does a 100ms delay after disk reset to ensure floppys can re-sync
+- reads 512 bytes per sector (relies on bios following IBM's defined spec for int 13,2h)
+
 
 ## absolute disk write:
-Interrupt: 26h
-
-Parameters:
-- al - drive number
-- cx - logical sectors to write
-- dx - logical starting sector
-- es:bx - addess in memory of content to write
-
-Return:
-- CF = 0 = success
-- CF = 1 = failure
-- ah = error code
