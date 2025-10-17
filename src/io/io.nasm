@@ -210,94 +210,34 @@ error:
 
 
 absolute_read_disk: ; int 25h
-    ; al -> drive number
-    ; cx -> sectors to read
-    ; dx -> logical starting sector
-    ; es:bx -> start address to dump
-    ; return:
-    ; CF = 0 = success
-    ; CF = 1 = failure
-    ; ah = bios / non bios error code
-    ; non bios error code:
-    ; F4 - failed to reset disk during retry
-    ; 8E - failed to get drive parameters
-    ; information:
-    ; handles large sector reads at once
-    ; retries 3 times (resets disk every retry)
-    ; handles 64KiB segment boundary
-    ; loads 512 bytes per sector (relies on BIOS following the IBM spec for int 13,2h)
 
-    push si
-    push bp
-    push cx
-    push dx
-    push bx
-    push es
-
-    ; ---- registers used for tracking ----
-
-    mov si, dx ; tracking of current logical starting sector
-    mov bp, cx ; tracking of current sectors left to read
-
-    ; ---- misc ----
-
-    mov dl, al ; put drive number into DL for better handling
-
-    .start:
-    cmp bp, 0 ; no more sectors to read?
-    jle .end
-    
-    ; ===== split sectors into chunks =====
-    cmp bp, 128
-    jle .last_chunk
-    mov al, 128
-    sub bp, 128
-    jmp .skip_1
-    .last_chunk:
-    xor ah, ah
-    mov ax, bp
-    mov bp, 0
-    .skip_1:
-
-    ; ===== fix 64KiB segment boundary =====
-    ; segment = current_segment + (current_offset / 16)
-    ; offset = current_offset & 0x000F ; preserve the lower bits so it aligns correctly to physical address
-    mov cx, es
-    add cx, bx
-    shr cx, 4
-    mov es, cx
-    and bx, 0x000F
-
-
-
-
-
-    jmp $
-
-    .end:
-    mov al, dl
-    pop es
-    pop bx
-    pop dx
-    pop cx
-    pop bp
-    pop si
-    iret
 
 
 absolute_write_disk: ; int 26h
-    ; al -> drive number
-    ; cx -> sectors to write
-    ; dx -> logical starting sector
-    ; es:bx -> write input
-    ; return:
-    ; CF = 0 = success
-    ; CF = 1 = failure
-    ; ah = error code
+
+wait_resync:
+    ; waits for ~110ms 
+    ; I use this after a disk reset to ensure a floppy can re-sync
+    ; relys on the IBM bios tick counter at 0x0040:0x006C.. otherwise will halt forever
+
+    push es
+    push bx
+
+    mov bx, 0x0040
+    mov es, bx
+    mov bx, [es:0x00C6]
+    add bx, 2 ; wait 2 ticks (~110ms)
+    .wait_loop:
+    cmp [es:0x00C6], bx
+    jge .wait_loop
+
+    pop bx
+    pop es
+    ret
 
 lbs_to_chs:
-    ; al -> drive number
-    ; dx -> logical starting sector
+    ; dl -> drive number
+    ; cx -> logical starting sector
     ; returns:
     ; CF = 1 = failed to get drive parameters via int 13,8h?   
     ; ch = low cylinder
@@ -305,17 +245,17 @@ lbs_to_chs:
     ; cl = 0 - 5 bits = sector number
     ; dh = head
     ; preserved:
-    ; everything that isn't returned
+    ; every register that isn't returned
 
     push es
     push di
     push ax
     push dx
     push bp
+    push bx
 
-    mov bp, dx ; preserve the LBS
+    mov bp, cx ; preserve the LBS
     mov ah, 0x08
-    mov dl, al
     mov al, dh ; in case of failure
     int 0x13
 
@@ -352,6 +292,7 @@ lbs_to_chs:
 
     clc
     .end:
+    pop bx
     pop bp
     pop dx
     mov dh, al ; put head into the right place
