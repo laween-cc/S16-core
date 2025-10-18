@@ -265,7 +265,7 @@ absolute_disk_abstractions: ; int 22h
     mov byte [.memory_scratch + 1], al
     mov bp, 3 ; retry counter ; I ran out of registers..
     .bios_call:
-    clc ; disable interrupts to ensure safer disk read / write
+    cli ; disable interrupts to ensure safer disk read / write
     mov ah, [.memory_scratch]
     int 0x13
 
