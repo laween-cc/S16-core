@@ -163,11 +163,9 @@ start:
     mov cx, 10
     rep stosb
 
-    ; ===== set up absolute disk services =====
-    mov word [0x25 * 4], absolute_read_disk
-    mov word [0x25 * 4 + 2], 0x0000
-    mov word [0x26 * 4], absolute_write_disk
-    mov word [0x26 * 4 + 2], 0x0000
+    ; ===== set up absolute disk abstractions =====
+    mov word [0x22 * 4], absolute_disk_abstractions
+    mov word [0x22 * 4 + 2], 0x0000
 
 bootcfg:
     ; ===== open & read BOOT.CFG =====
@@ -209,25 +207,38 @@ error:
     ret
 
 
-absolute_read_disk: ; int 25h
-    ; dl -> boot drive
+absolute_disk_abstractions: ; int 22h
+    ; ah -> service
+    ; dl -> drive number (0 - 255)
     ; dh -> logical sectors to read (1 - 128)
-    ; cx -> logical starting sector (can only address up to 8GB)
-    ; es:bx -> dump address
+    ; cx -> logical starting sector (can only address up to ~32MB)
+    ; es:bx -> memory buffer
     ; return:
     ; CF = 0 = success
     ; CF = 1 = failure
-    ; ah = bios status
+    ; al = bios status
+
+    ; ===== confirm the service! =====
+    cmp ah, 0x02
+    je .valid_service
+    cmp ah, 0x03
+    je .valid_service
+
+    mov al, 0x01 ; bad command passed to driver
+    stc
+    iret
+    
+    .valid_service:
+    mov byte [.memory_scratch], ah
 
     push bx
     push dx
     push ax
     push bp
+    push cx
     push es
 
-    ; ===== disable interrupts =====
     pushf ; so I can reset the interrupt flag back to its previous state
-    cli
 
     ; ===== fix 64KiB segment boundary =====
     ; segment = current_segment + (current_offset << 4)
@@ -250,11 +261,12 @@ absolute_read_disk: ; int 25h
     ; cl = 0 - 5 bits = sector number
     ; dh = head
 
-    ; ===== read the sectors from disk =====
-    mov byte [.memory_scratch], al
+    ; ===== bios call =====
+    mov byte [.memory_scratch + 1], al
     mov bp, 3 ; retry counter ; I ran out of registers..
     .bios_call:
-    mov ah, 0x02
+    clc ; disable interrupts to ensure safer disk read / write
+    mov ah, [.memory_scratch]
     int 0x13
 
     jnc .end ; success!
@@ -268,9 +280,10 @@ absolute_read_disk: ; int 25h
 
     jc .end ; failed to reset disk? AH contains bios status
 
+    sti ; interrupts need to be enabled for this part
     call wait_resync ; wait ~110ms to allow floppies / other storage devices to re-sync
 
-    mov al, [.memory_scratch] ; restore sectors to read
+    mov al, [.memory_scratch + 1] ; restore sectors to read
     jmp .bios_call
     .end:
 
@@ -283,20 +296,21 @@ absolute_read_disk: ; int 25h
 
     ; ---- restore registers ----
     pop es
+    pop cx
     pop bp
     pop dx ; ax
-    mov al, dl ; restore al
+    mov al, ah ; put bios status into al
+    mov ah, dh ; restore ah
     pop dx
     pop bx
     iret
-    .memory_scratch: db 0
-
-absolute_write_disk: ; int 26h
+    .memory_scratch: dw 0
 
 wait_resync:
     ; waits for ~110ms 
     ; I use this after a disk reset to ensure a floppy can re-sync
     ; relys on the IBM bios tick counter at 0x0040:0x006C.. otherwise will halt forever
+    ; warning: interrupts must be enabled otherwise will halt forever
 
     push es
     push bx
@@ -329,7 +343,7 @@ lbs_to_chs:
     push bx
     push ax
     push dx
-    push bp
+    ; push bp
 
     mov bp, cx ; preserve the LBS
     mov ah, 0x08
@@ -369,7 +383,7 @@ lbs_to_chs:
     xor ah, ah ; no error
     clc
     .end:
-    pop bp
+    ; pop bp
     pop dx
     mov dh, al ; put head into the right place
     pop bx ; ax
