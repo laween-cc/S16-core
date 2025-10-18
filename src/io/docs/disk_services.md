@@ -13,17 +13,14 @@ Parameters:
 Return:
 - CF = 0 = success
 - CF = 1 = failure
-- ah = bios / non bios error code
-
-Non bios error code:
-- F4 - failed to reset disk during retry
-- 8E - failed to get drive parameters
+- ah = bios error code
 
 Information:
-- handles 64KiB segment boundary
+- fixes 64KiB segment boundary (ES:BX can point to any where)
 - retries 3 times before failing
-- during each retry it does a 100ms delay after disk reset to ensure floppys can re-sync
-- reads 512 bytes per sector (relies on bios following IBM's defined spec for int 13,2h)
+- during each retry it does a 100ms delay after disk reset to ensure floppys & slower disk devices  can re-sync
+- temporally disables interrupts to ensure safer disk reads (restores to previous status once done)
 
+Bytes_per_sector: 512
 
 ## absolute disk write:
