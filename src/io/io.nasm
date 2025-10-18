@@ -169,9 +169,9 @@ start:
     mov word [0x26 * 4], absolute_write_disk
     mov word [0x26 * 4 + 2], 0x0000
 
-syt:
-    ; ===== open & read BOOT.SYT =====
-    
+bootcfg:
+    ; ===== open & read BOOT.CFG =====
+
     jmp $
 
 kernel:
@@ -210,8 +210,86 @@ error:
 
 
 absolute_read_disk: ; int 25h
+    ; dl -> boot drive
+    ; dh -> logical sectors to read (1 - 128)
+    ; cx -> logical starting sector (can only address up to 8GB)
+    ; es:bx -> dump address
+    ; return:
+    ; CF = 0 = success
+    ; CF = 1 = failure
+    ; ah = bios status
 
+    push bx
+    push dx
+    push ax
+    push bp
+    push es
 
+    ; ===== disable interrupts =====
+    pushf ; so I can reset the interrupt flag back to its previous state
+    cli
+
+    ; ===== fix 64KiB segment boundary =====
+    ; segment = current_segment + (current_offset << 4)
+    ; offset = current_offset & 0x000F
+    mov ax, bx
+    shr ax, 4
+    mov bp, es
+    add ax, bp
+    mov es, ax
+    and bx, 0x000F
+
+    ; ===== lbs to chs =====
+    mov al, dh ; move logical sectors to read into al
+    call lbs_to_chs
+
+    jc .end ; failure? AH contains bios status
+
+    ; ch = low cylinder
+    ; cl = 7 - 6 bits = high cylinder
+    ; cl = 0 - 5 bits = sector number
+    ; dh = head
+
+    ; ===== read the sectors from disk =====
+    mov byte [.memory_scratch], al
+    mov bp, 3 ; retry counter ; I ran out of registers..
+    .bios_call:
+    mov ah, 0x02
+    int 0x13
+
+    jnc .end ; success!
+
+    ; ---- reset disk & retry ----
+    dec bp
+    jz .end ; failure! AH contains bios status and CF should still be set!
+
+    xor ah, ah
+    int 0x13
+
+    jc .end ; failed to reset disk? AH contains bios status
+
+    call wait_resync ; wait ~110ms to allow floppies / other storage devices to re-sync
+
+    mov al, [.memory_scratch] ; restore sectors to read
+    jmp .bios_call
+    .end:
+
+    ; ---- restore the interrupt status ----
+    pop dx
+    test dx, 0x100
+    jz .interrupt_disabled
+    sti
+    .interrupt_disabled:
+
+    ; ---- restore registers ----
+    pop es
+    pop bp
+    pop dx ; ax
+    mov al, dl ; restore al
+    pop dx
+    pop bx
+    iret
+    .memory_scratch: db 0
 
 absolute_write_disk: ; int 26h
 
@@ -239,24 +317,22 @@ lbs_to_chs:
     ; dl -> drive number
     ; cx -> logical starting sector
     ; returns:
-    ; CF = 1 = failed to get drive parameters via int 13,8h?   
+    ; CF = 1 = failed to get drive parameters via int 13,8h?
+    ; ah = bios status
     ; ch = low cylinder
     ; cl = 7 - 6 bits = high cylinder
     ; cl = 0 - 5 bits = sector number
     ; dh = head
-    ; preserved:
-    ; every register that isn't returned
 
     push es
     push di
+    push bx
     push ax
     push dx
     push bp
-    push bx
 
     mov bp, cx ; preserve the LBS
     mov ah, 0x08
-    mov al, dh ; in case of failure
     int 0x13
 
     jc .end
@@ -290,13 +366,15 @@ lbs_to_chs:
     ; and ah, 00111111b ; zero out bits 7 - 6
     or cl, ah ; combine the bits
 
+    xor ah, ah ; no error
     clc
     .end:
-    pop bx
     pop bp
     pop dx
     mov dh, al ; put head into the right place
-    pop ax
+    pop bx ; ax
+    mov al, bl ; restore al
+    pop bx
     pop di
     pop es
     ret
